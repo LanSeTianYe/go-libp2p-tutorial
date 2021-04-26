@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/network"
 	peerstore "github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	"github.com/multiformats/go-multiaddr"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -45,8 +48,20 @@ func startNode1() (host.Host, string) {
 	}
 
 	//配置ping协议消息的处理器
-	pingService := &ping.PingService{Host: node}
-	node.SetStreamHandler(ping.ID, pingService.PingHandler)
+	//_ := &ping.PingService{Host: node}
+	node.SetStreamHandler(ping.ID, func(stream network.Stream) {
+		for {
+			buf := make([]byte, 32)
+			_, err1 := io.ReadFull(stream, buf)
+			if err1 != nil {
+				fmt.Println(err1)
+			}
+			_, err1 = stream.Write(buf)
+			if err1 != nil {
+				fmt.Println(err1)
+			}
+		}
+	})
 
 	//打印节点监听的地址
 	fmt.Println("Listen addresses:", node.Addrs())
@@ -103,6 +118,7 @@ func startNode2(address string) host.Host {
 	for {
 		res := <-ch
 		fmt.Println("got ping response!", "RTT:", res.RTT)
+		time.Sleep(time.Millisecond * 100)
 	}
 	return node
 }
